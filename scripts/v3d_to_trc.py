@@ -52,7 +52,7 @@ def get_all_v3d_trajectories(tsv_folder:Path, subject:str)->pd.DataFrame:
 
     return trajectories
 
-def convert_to_trc(trajectories_df, output_filepath, frame_rate=100, units='mm'):
+def convert_df_to_trc(trajectories_df, output_filepath, frame_rate=100, units='mm'):
     """
     Convert Visual3D exported trajectories to OpenSim TRC format.
     
@@ -111,8 +111,8 @@ def convert_to_trc(trajectories_df, output_filepath, frame_rate=100, units='mm')
         
         # Write coordinate labels - second row
         header2 = "\t\t"
-        for _ in range(num_markers):
-            header2 += "X\tY\tZ\t"
+        for i in range(1, num_markers+1):
+            header2 += f"X{i}\tY{i}\tZ{i}\t"
         f.write(header2.rstrip() + "\n")
         
         # Write data
@@ -145,11 +145,11 @@ if __name__ == "__main__":
     
     subject_id = "s1"
     data_dir = r"C:\Users\Mac Prible\OneDrive - The University of Texas at Austin\research\OpenSimCourse\project\v3d_output"
-    output_dir = r"C:\Users\Mac Prible\OneDrive - The University of Texas at Austin\research\OpenSimCourse\project\trc\s1"
-    output_path = Path(output_dir,f"{subject_id}.trc")
+    output_dir = r"C:\Users\Mac Prible\OneDrive - The University of Texas at Austin\research\OpenSimCourse\project\s1\trc"
+    output_path = Path(output_dir,f"{subject_id}_walking.trc")
     
 
     trajectories = get_all_v3d_trajectories(Path(data_dir), subject_id)
-    convert_to_trc(trajectories,output_path)
+    convert_df_to_trc(trajectories,output_path)
     print(trajectories.head)
 

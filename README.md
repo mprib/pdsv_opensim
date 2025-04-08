@@ -4,7 +4,7 @@ The purpose of this repository is to generate python scripts to assist with data
 
 Primary tasks:
 
-- [ ] merge landmark and trajectory data into a single flat file
+- [X] merge landmark and trajectory data into a single flat file
 - [ ] convert merged data into a single trc file
 
 Secondary tasks:
