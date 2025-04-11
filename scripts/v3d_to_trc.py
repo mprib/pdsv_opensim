@@ -1,9 +1,10 @@
+# %%
 import pandas as pd
 import numpy as np
 import os
 from pathlib import Path
 
-def read_v3d_export_file(filepath:str) -> pd.DataFrame:
+def read_raw_v3d_export_file(filepath:str) -> pd.DataFrame:
     """
     Reads a Visual3D export file in TSV format and converts it to a simple pandas DataFrame
     with flat column headers in the format MarkerName_Coordinate.
@@ -24,11 +25,14 @@ def read_v3d_export_file(filepath:str) -> pd.DataFrame:
         header_lines = [f.readline().strip() for _ in range(5)]
     
     # Extract marker names from the second line (index 1)
+    filename_headers = [file for file in header_lines[0].split('\t')]
+    files = list(set(filename_headers)) 
+
     marker_names = [name for name in header_lines[1].split('\t') if name]
     axes = [axis for axis in header_lines[4].split('\t') if axis !="ITEM"] 
 
     # Create column headings by combining marker names with axes
-    column_headings = [f"{marker}_{axis}" for marker, axis in zip(marker_names, axes)]
+    column_headings = [f"{filename}_{marker}_{axis}" for filename, marker, axis in zip(filename_headers, marker_names, axes)]
     column_headings.insert(0,"ITEM")
 
     # Read the data, skipping the header rows
@@ -40,10 +44,40 @@ def read_v3d_export_file(filepath:str) -> pd.DataFrame:
     
     return df
 
+def split_by_file_origin(raw_dataframe:pd.DataFrame)->pd.DataFrame:
+    landmarks = raw_dataframe.reset_index()
+    landmarks_long = pd.melt(landmarks,
+                            id_vars=["Frame"],
+                            var_name='Header',     # Name for the new column holding original column names
+                            value_name='Value'       # Name for the new column holding the values
+                            )
+    # df_split = landmarks_long.copy()
+
+    new_column_names = ['Origin', 'Marker_Coordinate']
+
+    # Use .str.rsplit() to split from the right side.
+    # n=2 means make at most 2 splits from the right.
+    # expand=True tells pandas to return a DataFrame with separate columns.
+    split_data = landmarks_long['Header'].str.rsplit('.c3d_', n=2, expand=True)
+    # Assign these new columns back to the DataFrame
+    landmarks_long[new_column_names] = split_data
+
+    # Need to go back and clean up the combined Marker_Coordinate now that it's simpler to split
+    new_column_names = ['Marker', 'Coordinate']
+    split_data = landmarks_long['Marker_Coordinate'].str.rsplit('_',n=1, expand=True)
+    landmarks_long[new_column_names] = split_data
+
+    # Optional: Drop the original 'Header' column as it's now redundant
+    landmarks_long = landmarks_long.drop(['Header', 'Marker_Coordinate'], axis=1)
+
+    # Reorder columns for clarity
+    landmarks_long = landmarks_long[['Frame', 'Origin', 'Marker', 'Coordinate', 'Value']]
+    landmarks_long = landmarks_long.set_index("Frame")
+    return landmarks_long
 
 def get_all_v3d_trajectories(tsv_folder:Path, subject:str)->pd.DataFrame:
-    landmarks = read_v3d_export_file(Path(data_dir,f"{subject_id}_landmarks.tsv"))
-    targets = read_v3d_export_file(Path(data_dir,f"{subject_id}_targets.tsv"))
+    landmarks = read_raw_v3d_export_file(Path(data_dir,f"{subject_id}_landmarks.tsv"))
+    targets = read_raw_v3d_export_file(Path(data_dir,f"{subject_id}_targets.tsv"))
 
     print("Landmarks and Targets imported")
 
@@ -141,15 +175,22 @@ def convert_df_to_trc(trajectories_df, output_filepath, frame_rate=100, units='m
     print(f"- Markers: {num_markers}")
     return None
     
-if __name__ == "__main__":
+# if __name__ == "__main__":
+if True:
     
     subject_id = "s1"
     data_dir = r"C:\Users\Mac Prible\OneDrive - The University of Texas at Austin\research\OpenSimCourse\project\v3d_output"
-    output_dir = r"C:\Users\Mac Prible\OneDrive - The University of Texas at Austin\research\OpenSimCourse\project\s1\trc"
+    # output_dir = r"C:\Users\Mac Prible\OneDrive - The University of Texas at Austin\research\OpenSimCourse\project\s1\trc"
+    output_dir = r"C:\Users\Mac Prible\repos\pdsv_opensim\output"
     output_path = Path(output_dir,f"{subject_id}_walking.trc")
     
 
-    trajectories = get_all_v3d_trajectories(Path(data_dir), subject_id)
-    convert_df_to_trc(trajectories,output_path)
-    print(trajectories.head)
+    
+    # trajectories = get_all_v3d_trajectories(Path(data_dir), subject_id)
+    # convert_df_to_trc(trajectories,output_path)
+    # print(trajectories.head)
 
+# %
+# %%
+landmarks = read_raw_v3d_export_file(Path(data_dir,f"{subject_id}_landmarks.tsv"))
+landmarks_by_origin = split_by_file_origin(landmarks)
